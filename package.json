@@ -1,0 +1,13 @@
+{
+  "name": "media-weaver-tauri",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "tauri": "cd src-tauri && tauri",
+    "dev": "cd src-tauri && tauri dev"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
