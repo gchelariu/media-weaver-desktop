@@ -11,12 +11,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     "directory", "browse-button", "dry-run", "run-button", "run-status",
     "scanned-count", "changed-count", "changed-label", "skipped-count", "unmatched-count",
     "errors-count", "file-count", "result-filter", "filter-trigger", "filter-label",
-    "filter-menu", "empty-state",
+    "filter-menu", "empty-state", "metadata-groups",
     "results-table", "results-body",
   ]) {
     elements[id] = document.getElementById(id);
   }
 
+  loadMetadataFields();
   elements["browse-button"].addEventListener("click", chooseDirectory);
   elements["run-button"].addEventListener("click", runProcessor);
   elements["directory"].addEventListener("input", updateRunButton);
@@ -43,6 +44,49 @@ window.addEventListener("DOMContentLoaded", async () => {
     setStatus(`Could not receive scan updates: ${error}`, "error");
   }
 });
+
+async function loadMetadataFields() {
+  try {
+    const fields = await invoke("get_metadata_fields");
+    renderMetadataFields(fields);
+  } catch (error) {
+    const message = document.createElement("p");
+    message.className = "metadata-loading error-text";
+    message.textContent = `Could not load configured metadata fields: ${error}`;
+    elements["metadata-groups"].replaceChildren(message);
+  }
+}
+
+function renderMetadataFields(fields) {
+  const groups = [
+    { key: "images", title: "Images MetaDates", className: "" },
+    { key: "videos", title: "Videos MetaDates", className: "video-metadata" },
+  ];
+  const groupElements = groups.map(({ key, title, className }) => {
+    const article = document.createElement("article");
+    article.className = `metadata-group ${className}`.trim();
+
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+
+    const list = document.createElement("ul");
+    list.className = "metadata-tags";
+    for (const field of fields[key] ?? []) {
+      const item = document.createElement("li");
+      item.append(document.createTextNode(field));
+      if (field === "FileModifyDate") {
+        const note = document.createElement("span");
+        note.textContent = " (file system)";
+        item.append(note);
+      }
+      list.append(item);
+    }
+
+    article.append(heading, list);
+    return article;
+  });
+  elements["metadata-groups"].replaceChildren(...groupElements);
+}
 
 async function chooseDirectory() {
   elements["browse-button"].disabled = true;

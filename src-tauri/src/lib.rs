@@ -45,6 +45,13 @@ struct Report {
     results: Vec<FileResult>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MetadataFields {
+    images: Vec<String>,
+    videos: Vec<String>,
+}
+
 #[derive(Debug)]
 struct ExistingDate {
     day: String,
@@ -59,6 +66,22 @@ async fn choose_directory(app: tauri::AppHandle) -> Option<String> {
         .ok()
         .flatten()
         .map(|path| path.to_string())
+}
+
+#[tauri::command]
+fn get_metadata_fields() -> MetadataFields {
+    fn fields_for(tags: &[&str]) -> Vec<String> {
+        tags.iter()
+            .copied()
+            .chain(std::iter::once("FileModifyDate"))
+            .map(str::to_owned)
+            .collect()
+    }
+
+    MetadataFields {
+        images: fields_for(IMAGE_DATE_TAGS),
+        videos: fields_for(VIDEO_DATE_TAGS),
+    }
 }
 
 #[tauri::command]
@@ -480,7 +503,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![choose_directory, process_media])
+        .invoke_handler(tauri::generate_handler![
+            choose_directory,
+            get_metadata_fields,
+            process_media
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -497,6 +524,30 @@ mod tests {
         assert!(has_valid_month_prefix("05-Holiday"));
         assert!(!has_valid_month_prefix("13-Invalid"));
         assert!(!has_valid_month_prefix("00"));
+    }
+
+    #[test]
+    fn exposes_the_configured_metadata_fields() {
+        let fields = get_metadata_fields();
+        assert_eq!(
+            fields.images,
+            ["DateTimeOriginal", "CreateDate", "ModifyDate", "FileModifyDate"]
+        );
+        assert_eq!(
+            fields.videos,
+            [
+                "CreateDate",
+                "ModifyDate",
+                "TrackCreateDate",
+                "TrackModifyDate",
+                "MediaCreateDate",
+                "MediaModifyDate",
+                "DateTimeOriginal",
+                "XMP:CreateDate",
+                "XMP:DateTimeOriginal",
+                "FileModifyDate"
+            ]
+        );
     }
 
     #[test]
