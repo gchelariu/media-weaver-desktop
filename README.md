@@ -17,7 +17,7 @@ cd src-tauri
 cargo tauri build
 ```
 
-The executable and Linux packages are written under `src-tauri/target/release/` (bundles are in `src-tauri/target/release/bundle/`). You can also run `cargo tauri dev` from `src-tauri` while developing. The optional `npm run dev` script is only a convenience wrapper around Tauri's development command; it is not needed to build or run the packaged app.
+The executable and Linux packages are written under `src-tauri/target/release/` (bundles are in `src-tauri/target/release/bundle/`). You can also run `cargo tauri dev` from `src-tauri` while developing. The frontend is static HTML/CSS/vanilla JavaScript, so it has no Node-based build step or frontend dependencies. `package.json` and `package-lock.json` are only for the optional npm scripts, which invoke Tauri CLI; they are not needed for the Cargo build or to run the packaged app.
 
 Choose the folder containing the year directories. The folder layout is `<root>/<YEAR>/<MM...>/<file>`; month folders may have a suffix such as `05-Holiday`. Preview mode is enabled by default. Turn it off only when you are ready to write metadata.
 
