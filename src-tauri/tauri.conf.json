@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "media-weaver-tauri",
+  "productName": "Media Weaver",
   "version": "0.1.0",
   "identifier": "com.gabrielc.media-weaver-tauri",
   "build": {
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "media-weaver-tauri",
+        "title": "Media Weaver",
         "width": 800,
         "height": 600
       }

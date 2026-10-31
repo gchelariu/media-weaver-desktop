@@ -2,38 +2,93 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="stylesheet" href="styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri App</title>
+    <meta name="color-scheme" content="light dark" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Media Weaver</title>
     <script type="module" src="/main.js" defer></script>
   </head>
-
   <body>
-    <main class="container">
-      <h1>Welcome to Tauri</h1>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand-mark" aria-hidden="true">MW</div>
+        <div>
+          <p class="eyebrow">PHOTO & VIDEO ORGANIZER</p>
+          <h1>Media Weaver</h1>
+          <p class="subtitle">Sync media dates with your <code>YEAR / MM</code> folders.</p>
+        </div>
+      </header>
 
-      <div class="row">
-        <a href="https://tauri.app" target="_blank">
-          <img src="/assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
-        </a>
-        <a
-          href="https://developer.mozilla.org/en-US/docs/Web/JavaScript"
-          target="_blank"
-        >
-          <img
-            src="/assets/javascript.svg"
-            class="logo vanilla"
-            alt="JavaScript logo"
-          />
-        </a>
-      </div>
-      <p>Click on the Tauri logo to learn more about the framework</p>
+      <section class="panel controls" aria-labelledby="source-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">SOURCE</p>
+            <h2 id="source-heading">Choose a media folder</h2>
+          </div>
+          <span class="folder-icon" aria-hidden="true">▰</span>
+        </div>
+        <div class="folder-row">
+          <input id="directory" type="text" placeholder="Select the folder containing year folders" readonly />
+          <button id="browse-button" class="button secondary" type="button">Browse</button>
+        </div>
+        <div class="run-row">
+          <label class="dry-run-toggle">
+            <input id="dry-run" type="checkbox" checked />
+            <span class="toggle-track" aria-hidden="true"></span>
+            <span><strong>Preview changes</strong><small>No files are modified</small></span>
+          </label>
+          <button id="run-button" class="button primary" type="button" disabled>
+            <span class="play-icon" aria-hidden="true">▶</span> Start scan
+          </button>
+        </div>
+        <p class="helper-text">Dates are taken from the containing year/month folders. Existing day and time are preserved.</p>
+      </section>
 
-      <form class="row" id="greet-form">
-        <input id="greet-input" placeholder="Enter a name..." />
-        <button type="submit">Greet</button>
-      </form>
-      <p id="greet-msg"></p>
+      <section id="results-section" class="results-section" aria-labelledby="results-heading">
+        <div class="results-header">
+          <div>
+            <p class="eyebrow">RUN REPORT</p>
+            <h2 id="results-heading">Results</h2>
+          </div>
+          <p id="run-status" class="run-status" role="status">Choose a folder to get started.</p>
+        </div>
+
+        <div class="summary-grid" aria-label="Run summary">
+          <article class="summary-card scanned-card"><span class="summary-label">Scanned</span><strong id="scanned-count">0</strong></article>
+          <article class="summary-card changed-card"><span id="changed-label" class="summary-label">Would change</span><strong id="changed-count">0</strong></article>
+          <article class="summary-card skipped-card"><span class="summary-label">Skipped</span><strong id="skipped-count">0</strong></article>
+          <article class="summary-card errors-card"><span class="summary-label">Errors</span><strong id="errors-count">0</strong></article>
+        </div>
+
+        <div class="file-panel">
+          <div class="file-toolbar">
+            <div>
+              <h3>Files</h3>
+              <span id="file-count" class="muted">No files yet</span>
+            </div>
+            <label class="filter-control">Show
+              <select id="result-filter" aria-label="Filter files">
+                <option value="all">All results</option>
+                <option value="changed">Changed</option>
+                <option value="skipped">Skipped</option>
+                <option value="error">Errors</option>
+              </select>
+            </label>
+          </div>
+          <div id="empty-state" class="empty-state">
+            <span class="empty-icon" aria-hidden="true">▤</span>
+            <strong>Your file report will appear here</strong>
+            <span>Start a preview to safely see what would change.</span>
+          </div>
+          <div class="table-scroll">
+            <table id="results-table" hidden>
+              <thead><tr><th>File</th><th>Status</th><th>Date details</th></tr></thead>
+              <tbody id="results-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <footer>Media Weaver · ExifTool required</footer>
     </main>
   </body>
 </html>
