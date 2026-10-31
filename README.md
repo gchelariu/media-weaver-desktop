@@ -21,4 +21,4 @@ The executable and Linux packages are written under `src-tauri/target/release/` 
 
 Choose the folder containing the year directories. The folder layout is `<root>/<YEAR>/<MM...>/<file>`; month folders may have a suffix such as `05-Holiday`. Preview mode is enabled by default. Turn it off only when you are ready to write metadata.
 
-The report updates while processing and lists changed (or would-change), skipped, and errored files. For a specific malformed EXIF structure, the app reports an error rather than removing all EXIF metadata as a fallback.
+The report updates while processing and lists changed (or would-change), skipped, out-of-structure, and errored files. Recognized media files outside a `<YEAR>/<MM...>` folder pair are counted and shown with an explanation instead of being silently ignored. For a specific malformed EXIF structure, the app reports an error rather than removing all EXIF metadata as a fallback.

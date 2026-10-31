@@ -40,6 +40,7 @@ struct Report {
     scanned: usize,
     changed: usize,
     skipped: usize,
+    out_of_structure: usize,
     errors: usize,
     results: Vec<FileResult>,
 }
@@ -171,12 +172,24 @@ fn walk_and_process(directory: &Path, window: &Window, dry_run: bool, report: &m
         if file_type.is_dir() {
             walk_and_process(&path, window, dry_run, report);
         } else if file_type.is_file() {
-            if let (Some(tags), Some(_)) = (media_tags(&path), find_year_month(&path)) {
+            if let Some(tags) = media_tags(&path) {
                 report.scanned += 1;
-                let result = process_file(&path, tags, dry_run);
+                let result = if find_year_month(&path).is_some() {
+                    process_file(&path, tags, dry_run)
+                } else {
+                    FileResult {
+                        path: path.display().to_string(),
+                        outcome: "unmatched".into(),
+                        dry_run,
+                        scanned: true,
+                        target_date: None,
+                        message: folder_layout_issue(&path),
+                    }
+                };
                 match result.outcome.as_str() {
                     "changed" => report.changed += 1,
                     "skipped" => report.skipped += 1,
+                    "unmatched" => report.out_of_structure += 1,
                     _ => report.errors += 1,
                 }
                 emit_result(window, report, result);
@@ -288,6 +301,44 @@ fn find_year_month(path: &Path) -> Option<(&str, &str)> {
     let month = path.parent()?.file_name()?.to_str()?;
     let year = path.parent()?.parent()?.file_name()?.to_str()?;
     (is_year(year) && has_valid_month_prefix(month)).then_some((year, month))
+}
+
+fn folder_layout_issue(path: &Path) -> String {
+    let parent = path.parent();
+    let parent_name = parent
+        .and_then(Path::file_name)
+        .and_then(|name| name.to_str())
+        .unwrap_or("unknown folder");
+
+    if is_year(parent_name) {
+        return format!(
+            "Missing month folder under year folder '{parent_name}'. Expected a path like {parent_name}/05-Holiday/<file>."
+        );
+    }
+
+    let year_name = parent
+        .and_then(Path::parent)
+        .and_then(Path::file_name)
+        .and_then(|name| name.to_str());
+    if let Some(year) = year_name.filter(|year| is_year(year)) {
+        return format!(
+            "'{parent_name}' is not a valid month folder under year '{year}'. Use a folder beginning with 01–12, such as 05-Holiday."
+        );
+    }
+
+    let ancestor_year = path
+        .ancestors()
+        .skip(1)
+        .filter_map(Path::file_name)
+        .filter_map(|name| name.to_str())
+        .find(|name| is_year(name));
+    if let Some(year) = ancestor_year {
+        return format!(
+            "File is not directly inside a month folder under year '{year}'. Expected <YEAR>/<MM...>/<file>."
+        );
+    }
+
+    "No valid four-digit year folder was found. Expected <YEAR>/<MM...>/<file>.".into()
 }
 
 fn is_year(value: &str) -> bool {
@@ -458,6 +509,13 @@ mod tests {
             find_year_month(Path::new("/photos/2024/05-trip/edited/photo.jpg")),
             None
         );
+    }
+
+    #[test]
+    fn explains_missing_month_folder() {
+        let issue = folder_layout_issue(Path::new("/photos/2010/IMG_4435.jpg"));
+        assert!(issue.contains("Missing month folder"));
+        assert!(issue.contains("2010/05-Holiday"));
     }
 
     #[test]

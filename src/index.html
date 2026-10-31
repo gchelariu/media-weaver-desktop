@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="light" />
     <link rel="stylesheet" href="styles.css" />
     <title>Media Weaver</title>
     <script type="module" src="/main.js" defer></script>
@@ -57,6 +57,7 @@
           <article class="summary-card scanned-card"><span class="summary-label">Scanned</span><strong id="scanned-count">0</strong></article>
           <article class="summary-card changed-card"><span id="changed-label" class="summary-label">Would change</span><strong id="changed-count">0</strong></article>
           <article class="summary-card skipped-card"><span class="summary-label">Skipped</span><strong id="skipped-count">0</strong></article>
+          <article class="summary-card unmatched-card"><span class="summary-label">Out of structure</span><strong id="unmatched-count">0</strong></article>
           <article class="summary-card errors-card"><span class="summary-label">Errors</span><strong id="errors-count">0</strong></article>
         </div>
 
@@ -66,14 +67,22 @@
               <h3>Files</h3>
               <span id="file-count" class="muted">No files yet</span>
             </div>
-            <label class="filter-control">Show
-              <select id="result-filter" aria-label="Filter files">
-                <option value="all">All results</option>
-                <option value="changed">Changed</option>
-                <option value="skipped">Skipped</option>
-                <option value="error">Errors</option>
-              </select>
-            </label>
+            <div class="filter-control">
+              <span>Show</span>
+              <div id="result-filter" class="filter-dropdown">
+                <button id="filter-trigger" class="filter-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="filter-menu">
+                  <span id="filter-label">All results</span>
+                  <span class="filter-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <div id="filter-menu" class="filter-menu" role="menu" aria-label="Filter files" hidden>
+                  <button class="filter-option" type="button" role="menuitemradio" aria-checked="true" data-filter="all">All results</button>
+                  <button class="filter-option" type="button" role="menuitemradio" aria-checked="false" data-filter="changed">Changed</button>
+                  <button class="filter-option" type="button" role="menuitemradio" aria-checked="false" data-filter="skipped">Skipped</button>
+                  <button class="filter-option" type="button" role="menuitemradio" aria-checked="false" data-filter="unmatched">Out of structure</button>
+                  <button class="filter-option" type="button" role="menuitemradio" aria-checked="false" data-filter="error">Errors</button>
+                </div>
+              </div>
+            </div>
           </div>
           <div id="empty-state" class="empty-state">
             <span class="empty-icon" aria-hidden="true">▤</span>
