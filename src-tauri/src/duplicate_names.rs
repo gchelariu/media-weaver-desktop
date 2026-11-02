@@ -18,14 +18,14 @@ pub struct DuplicateNameReport {
 #[serde(rename_all = "camelCase")]
 struct DirectoryDuplicateGroup {
     directory: String,
-    files: Vec<DuplicateFile>,
+    duplicate_directories: Vec<DirectoryMatchGroup>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct DuplicateFile {
-    name: String,
-    duplicate_directories: Vec<String>,
+struct DirectoryMatchGroup {
+    directory: String,
+    file_names: Vec<String>,
 }
 
 pub fn scan(root: &str) -> Result<DuplicateNameReport, String> {
@@ -108,39 +108,46 @@ fn group_duplicate_names(
         .collect();
     let duplicate_names = duplicate_groups.len();
     let duplicate_files = duplicate_groups.iter().map(|(_, paths)| paths.len()).sum();
-    let mut by_directory: BTreeMap<PathBuf, Vec<DuplicateFile>> = BTreeMap::new();
+    let mut by_directory: BTreeMap<PathBuf, BTreeMap<PathBuf, BTreeSet<OsString>>> =
+        BTreeMap::new();
 
     for (name, paths) in duplicate_groups {
         for path in &paths {
             let Some(directory) = path.parent() else {
                 continue;
             };
-            let duplicate_directories: BTreeSet<_> = paths
+            for duplicate_directory in paths
                 .iter()
                 .filter_map(|other_path| other_path.parent())
                 .filter(|other_directory| *other_directory != directory)
-                .map(Path::to_path_buf)
-                .collect();
-
-            by_directory
-                .entry(directory.to_path_buf())
-                .or_default()
-                .push(DuplicateFile {
-                    name: name.to_string_lossy().into_owned(),
-                    duplicate_directories: duplicate_directories
-                        .into_iter()
-                        .map(|path| path.to_string_lossy().into_owned())
-                        .collect(),
-                });
+            {
+                by_directory
+                    .entry(directory.to_path_buf())
+                    .or_default()
+                    .entry(duplicate_directory.to_path_buf())
+                    .or_default()
+                    .insert(name.clone());
+            }
         }
     }
 
     let directories = by_directory
         .into_iter()
-        .map(|(directory, files)| DirectoryDuplicateGroup {
-            directory: directory.to_string_lossy().into_owned(),
-            files,
-        })
+        .map(
+            |(directory, duplicate_directories)| DirectoryDuplicateGroup {
+                directory: directory.to_string_lossy().into_owned(),
+                duplicate_directories: duplicate_directories
+                    .into_iter()
+                    .map(|(directory, file_names)| DirectoryMatchGroup {
+                        directory: directory.to_string_lossy().into_owned(),
+                        file_names: file_names
+                            .into_iter()
+                            .map(|name| name.to_string_lossy().into_owned())
+                            .collect(),
+                    })
+                    .collect(),
+            },
+        )
         .collect();
 
     (duplicate_names, duplicate_files, directories)
@@ -156,30 +163,47 @@ mod tests {
             ("photo.jpg".into(), PathBuf::from("/photos/one/photo.jpg")),
             ("photo.jpg".into(), PathBuf::from("/photos/two/photo.jpg")),
             ("trip.jpg".into(), PathBuf::from("/photos/one/trip.jpg")),
+            ("trip.jpg".into(), PathBuf::from("/photos/two/trip.jpg")),
             ("trip.jpg".into(), PathBuf::from("/photos/three/trip.jpg")),
             ("Photo.jpg".into(), PathBuf::from("/photos/Photo.jpg")),
             ("notes.txt".into(), PathBuf::from("/photos/notes.txt")),
         ]);
 
         assert_eq!(duplicate_names, 2);
-        assert_eq!(duplicate_files, 4);
+        assert_eq!(duplicate_files, 5);
         assert_eq!(directories.len(), 3);
         assert_eq!(directories[0].directory, "/photos/one");
-        assert_eq!(directories[0].files.len(), 2);
-        assert_eq!(directories[0].files[0].name, "photo.jpg");
+        assert_eq!(directories[0].duplicate_directories.len(), 2);
         assert_eq!(
-            directories[0].files[0].duplicate_directories,
-            ["/photos/two"]
+            directories[0].duplicate_directories[0].directory,
+            "/photos/three"
+        );
+        assert_eq!(
+            directories[0].duplicate_directories[0].file_names,
+            ["trip.jpg"]
+        );
+        assert_eq!(
+            directories[0].duplicate_directories[1].directory,
+            "/photos/two"
+        );
+        assert_eq!(
+            directories[0].duplicate_directories[1].file_names,
+            ["photo.jpg", "trip.jpg"]
         );
         assert_eq!(directories[1].directory, "/photos/three");
         assert_eq!(
-            directories[1].files[0].duplicate_directories,
-            ["/photos/one"]
+            directories[1].duplicate_directories[0].file_names,
+            ["trip.jpg"]
         );
         assert_eq!(directories[2].directory, "/photos/two");
+        assert_eq!(directories[2].duplicate_directories.len(), 2);
         assert_eq!(
-            directories[2].files[0].duplicate_directories,
-            ["/photos/one"]
+            directories[2].duplicate_directories[0].file_names,
+            ["photo.jpg", "trip.jpg"]
+        );
+        assert_eq!(
+            directories[2].duplicate_directories[1].file_names,
+            ["trip.jpg"]
         );
     }
 }
