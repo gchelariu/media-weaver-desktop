@@ -6,6 +6,8 @@ use std::process::{Command, Output};
 use tauri::{Emitter, Window};
 use tauri_plugin_dialog::DialogExt;
 
+mod duplicate_names;
+
 const IMAGE_DATE_TAGS: &[&str] = &["DateTimeOriginal", "CreateDate", "ModifyDate"];
 const VIDEO_DATE_TAGS: &[&str] = &[
     "CreateDate",
@@ -89,6 +91,15 @@ async fn process_media(window: Window, root: String, dry_run: bool) -> Result<Re
     tauri::async_runtime::spawn_blocking(move || process_media_sync(window, root, dry_run))
         .await
         .map_err(|error| format!("Media processing task failed: {error}"))?
+}
+
+#[tauri::command]
+async fn scan_duplicate_names(
+    root: String,
+) -> Result<duplicate_names::DuplicateNameReport, String> {
+    tauri::async_runtime::spawn_blocking(move || duplicate_names::scan(&root))
+        .await
+        .map_err(|error| format!("Duplicate-name scan task failed: {error}"))?
 }
 
 fn process_media_sync(window: Window, root: String, dry_run: bool) -> Result<Report, String> {
@@ -506,7 +517,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             choose_directory,
             get_metadata_fields,
-            process_media
+            process_media,
+            scan_duplicate_names
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -531,7 +543,12 @@ mod tests {
         let fields = get_metadata_fields();
         assert_eq!(
             fields.images,
-            ["DateTimeOriginal", "CreateDate", "ModifyDate", "FileModifyDate"]
+            [
+                "DateTimeOriginal",
+                "CreateDate",
+                "ModifyDate",
+                "FileModifyDate"
+            ]
         );
         assert_eq!(
             fields.videos,
