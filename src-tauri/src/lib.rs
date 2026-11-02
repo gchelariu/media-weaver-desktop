@@ -102,6 +102,19 @@ async fn scan_duplicate_names(
         .map_err(|error| format!("Duplicate-name scan task failed: {error}"))?
 }
 
+#[tauri::command]
+async fn delete_duplicate_files(
+    root: String,
+    directory: String,
+    file_names: Vec<String>,
+) -> Result<duplicate_names::DeleteDuplicateReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        duplicate_names::delete_duplicates(&root, &directory, file_names)
+    })
+    .await
+    .map_err(|error| format!("Duplicate-file deletion task failed: {error}"))?
+}
+
 fn process_media_sync(window: Window, root: String, dry_run: bool) -> Result<Report, String> {
     let root = PathBuf::from(root);
     if !root.is_dir() {
@@ -518,7 +531,8 @@ pub fn run() {
             choose_directory,
             get_metadata_fields,
             process_media,
-            scan_duplicate_names
+            scan_duplicate_names,
+            delete_duplicate_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

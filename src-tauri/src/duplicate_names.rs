@@ -1,8 +1,8 @@
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -11,6 +11,13 @@ pub struct DuplicateNameReport {
     duplicate_names: usize,
     duplicate_files: usize,
     directories: Vec<DirectoryDuplicateGroup>,
+    errors: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteDuplicateReport {
+    deleted_files: usize,
     errors: Vec<String>,
 }
 
@@ -47,6 +54,91 @@ pub fn scan(root: &str) -> Result<DuplicateNameReport, String> {
         directories,
         errors,
     })
+}
+
+pub fn delete_duplicates(
+    root: &str,
+    directory: &str,
+    file_names: Vec<String>,
+) -> Result<DeleteDuplicateReport, String> {
+    if file_names.is_empty() {
+        return Err("No duplicate files were selected for deletion".into());
+    }
+
+    let canonical_root = PathBuf::from(root)
+        .canonicalize()
+        .map_err(|error| format!("Could not access scan folder: {error}"))?;
+    if !canonical_root.is_dir() {
+        return Err(format!("Not a directory: {}", canonical_root.display()));
+    }
+
+    let canonical_directory = PathBuf::from(directory)
+        .canonicalize()
+        .map_err(|error| format!("Could not access target directory: {error}"))?;
+    if !canonical_directory.starts_with(&canonical_root) || !canonical_directory.is_dir() {
+        return Err("Target directory is not inside the selected scan folder".into());
+    }
+
+    // Rescan immediately before deleting so stale UI results cannot authorize
+    // removal of files that are no longer duplicates.
+    let fresh_report = scan(&canonical_root.to_string_lossy())?;
+    let target_directory = canonical_directory.to_string_lossy().into_owned();
+    let duplicate_names: BTreeSet<String> = fresh_report
+        .directories
+        .iter()
+        .flat_map(|source| source.duplicate_directories.iter())
+        .filter(|duplicate| duplicate.directory == target_directory)
+        .flat_map(|duplicate| duplicate.file_names.iter().cloned())
+        .collect();
+
+    let requested_names: BTreeSet<String> = file_names.into_iter().collect();
+    let mut paths_to_delete = Vec::with_capacity(requested_names.len());
+    for name in requested_names {
+        let name_path = Path::new(&name);
+        let mut components = name_path.components();
+        if !matches!(components.next(), Some(Component::Normal(component)) if component == OsStr::new(&name))
+            || components.next().is_some()
+        {
+            return Err(format!("Invalid file name: {name}"));
+        }
+        if !duplicate_names.contains(&name) {
+            return Err(format!(
+                "'{name}' is no longer confirmed as a duplicate in {}",
+                canonical_directory.display()
+            ));
+        }
+
+        let path = canonical_directory.join(&name);
+        let metadata = fs::symlink_metadata(&path)
+            .map_err(|error| format!("Could not inspect {}: {error}", path.display()))?;
+        if !metadata.file_type().is_file() {
+            return Err(format!("Not a regular file: {}", path.display()));
+        }
+        let canonical_path = path
+            .canonicalize()
+            .map_err(|error| format!("Could not access {}: {error}", path.display()))?;
+        if canonical_path.parent() != Some(canonical_directory.as_path()) {
+            return Err(format!(
+                "File is not directly inside the target directory: {}",
+                path.display()
+            ));
+        }
+        paths_to_delete.push(path);
+    }
+
+    let mut report = DeleteDuplicateReport {
+        deleted_files: 0,
+        errors: Vec::new(),
+    };
+    for path in paths_to_delete {
+        match fs::remove_file(&path) {
+            Ok(()) => report.deleted_files += 1,
+            Err(error) => report
+                .errors
+                .push(format!("Could not delete {}: {error}", path.display())),
+        }
+    }
+    Ok(report)
 }
 
 fn collect_files(directory: &Path, files: &mut Vec<(OsString, PathBuf)>, errors: &mut Vec<String>) {
@@ -156,6 +248,16 @@ fn group_duplicate_names(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn unique_temp_dir() -> PathBuf {
+        static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+        std::env::temp_dir().join(format!(
+            "media-weaver-duplicate-test-{}-{}",
+            std::process::id(),
+            NEXT_ID.fetch_add(1, Ordering::Relaxed)
+        ))
+    }
 
     #[test]
     fn groups_matches_by_directory_and_ignores_unique_names() {
@@ -205,5 +307,37 @@ mod tests {
             directories[2].duplicate_directories[1].file_names,
             ["trip.jpg"]
         );
+    }
+
+    #[test]
+    fn deletes_only_files_still_confirmed_as_duplicates_in_target_directory() {
+        let root = unique_temp_dir();
+        let original = root.join("originals");
+        let duplicate = root.join("copies");
+        fs::create_dir_all(&original).unwrap();
+        fs::create_dir_all(&duplicate).unwrap();
+        fs::write(original.join("photo.jpg"), b"original").unwrap();
+        fs::write(duplicate.join("photo.jpg"), b"duplicate").unwrap();
+        fs::write(duplicate.join("unique.jpg"), b"unique").unwrap();
+
+        let report = delete_duplicates(
+            &root.to_string_lossy(),
+            &duplicate.to_string_lossy(),
+            vec!["photo.jpg".into()],
+        )
+        .unwrap();
+        assert_eq!(report.deleted_files, 1);
+        assert!(original.join("photo.jpg").exists());
+        assert!(!duplicate.join("photo.jpg").exists());
+
+        let result = delete_duplicates(
+            &root.to_string_lossy(),
+            &duplicate.to_string_lossy(),
+            vec!["unique.jpg".into()],
+        );
+        assert!(result.is_err());
+        assert!(duplicate.join("unique.jpg").exists());
+
+        fs::remove_dir_all(root).unwrap();
     }
 }
