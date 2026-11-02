@@ -19,6 +19,12 @@
         </div>
       </header>
 
+      <nav class="tabs" role="tablist" aria-label="Media Weaver tools">
+        <button id="processor-tab" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="processor-panel">Date processor</button>
+        <button id="duplicates-tab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="duplicates-panel" tabindex="-1">Duplicate names</button>
+      </nav>
+
+      <div id="processor-panel" role="tabpanel" aria-labelledby="processor-tab" tabindex="0">
       <section class="panel controls" aria-labelledby="source-heading">
         <div class="section-heading">
           <div>
@@ -110,6 +116,75 @@
           </div>
         </div>
       </section>
+      </div>
+
+      <section id="duplicates-panel" role="tabpanel" aria-labelledby="duplicates-tab" tabindex="0" hidden>
+        <section class="panel controls" aria-labelledby="duplicates-source-heading">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">DUPLICATE FINDER</p>
+              <h2 id="duplicates-source-heading">Find files with the same name</h2>
+            </div>
+            <span class="folder-icon" aria-hidden="true">⌕</span>
+          </div>
+          <div class="folder-row">
+            <input id="duplicates-directory" type="text" placeholder="Select a folder to scan recursively" readonly />
+            <button id="duplicates-browse-button" class="button secondary" type="button">Browse</button>
+          </div>
+          <div class="run-row duplicates-run-row">
+            <p class="helper-text">Scan is read-only. You can delete matching files from a duplicate directory after confirmation.</p>
+            <button id="duplicates-run-button" class="button primary" type="button" disabled>
+              <span class="play-icon" aria-hidden="true">▶</span> Scan for duplicates
+            </button>
+          </div>
+        </section>
+
+        <section class="results-section" aria-labelledby="duplicates-results-heading">
+          <div class="results-header">
+            <div>
+              <p class="eyebrow">SCAN REPORT</p>
+              <h2 id="duplicates-results-heading">Duplicate names</h2>
+            </div>
+            <p id="duplicates-status" class="run-status" role="status">Choose a folder to get started.</p>
+          </div>
+
+          <div class="summary-grid duplicate-summary-grid" aria-label="Duplicate scan summary">
+            <article class="summary-card scanned-card"><span class="summary-label">Files scanned</span><strong id="duplicates-scanned-count">0</strong></article>
+            <article class="summary-card changed-card"><span class="summary-label">Duplicate names</span><strong id="duplicate-groups-count">0</strong></article>
+            <article class="summary-card skipped-card"><span class="summary-label">Matching files</span><strong id="duplicate-files-count">0</strong></article>
+            <article class="summary-card errors-card"><span class="summary-label">Scan errors</span><strong id="duplicate-errors-count">0</strong></article>
+          </div>
+
+          <div class="file-panel duplicate-file-panel">
+            <div class="file-toolbar">
+              <div>
+                <h3>Directories with duplicates</h3>
+                <span id="duplicate-file-count" class="muted">No files yet</span>
+              </div>
+            </div>
+            <div id="duplicates-empty-state" class="empty-state">
+              <span class="empty-icon" aria-hidden="true">⌕</span>
+              <strong>No duplicate scan yet</strong>
+              <span>Choose a folder and scan to find repeated file names.</span>
+            </div>
+            <div id="duplicate-groups" class="duplicate-groups" hidden></div>
+            <p id="duplicate-error-details" class="duplicate-error-details" hidden></p>
+          </div>
+        </section>
+      </section>
+
+      <dialog id="delete-confirmation" class="confirmation-dialog" aria-labelledby="delete-confirmation-title">
+        <form method="dialog">
+          <p class="eyebrow">PERMANENT ACTION</p>
+          <h2 id="delete-confirmation-title">Delete duplicate files?</h2>
+          <p class="confirmation-warning">This action is permanent, do you wish to continue?</p>
+          <p id="delete-confirmation-details" class="confirmation-details"></p>
+          <div class="confirmation-actions">
+            <button class="button secondary" type="submit" value="cancel">Cancel</button>
+            <button class="button danger" type="submit" value="continue">Continue</button>
+          </div>
+        </form>
+      </dialog>
       <footer>Media Weaver · ExifTool required</footer>
     </main>
   </body>
